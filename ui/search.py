@@ -34,6 +34,7 @@ def render_sidebar_search() -> None:
 
     # ── Groq key ─────────────────────────────────────────────────────────
     section_label("API key")
+    default_key = st.secrets.get("GROQ_API_KEY", "") if hasattr(st, "secrets") else ""
     groq_key = st.sidebar.text_input(
         "Groq API key",
         type="password",
