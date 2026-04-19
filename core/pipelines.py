@@ -53,8 +53,8 @@ ProgressCb = Callable[[str, int, int], None] | None
 
 def preview_search(
     user_input: str,
-    year_from: int,
-    year_to: int,
+    date_from,
+    date_to,
 ) -> dict:
     """
     Resolve user input to a generic name and return how many papers PubMed
@@ -70,7 +70,7 @@ def preview_search(
             "message": f"Could not resolve '{user_input}' to a tracked molecule.",
         }
 
-    query = pubmed_client.build_query(resolved.generic, year_from, year_to)
+    query = pubmed_client.build_query(resolved.generic, date_from, date_to)
     count = pubmed_client.count_matches(query)
 
     return {
