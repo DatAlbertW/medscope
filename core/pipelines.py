@@ -146,6 +146,15 @@ def run_full_pipeline(
         _p("Classifying papers", done, total)
 
     classifier.classify_batch(client, papers, molecule, progress_cb=_classify_progress)
+    # DEBUG surface classification stats
+    if papers and hasattr(papers[0], "_classify_stats"):
+        stats = papers[0]._classify_stats
+        warnings.append(f"DEBUG: classified INCLUDE={stats['INCLUDE']}, "
+                        f"EXCLUDE_fast={stats['EXCLUDE_fast']}, "
+                        f"EXCLUDE_llm={stats['EXCLUDE_llm']}")
+        warnings.append(f"DEBUG: by category: {stats['by_category']}")
+        for r in stats["sample_reasons"]:
+            warnings.append(f"DEBUG: {r}")
 
     included = [p for p in papers if p.decision == "INCLUDE" and p.category]
 
