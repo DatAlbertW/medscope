@@ -269,7 +269,8 @@ h3 { font-size: 1.15rem !important; margin-top: 1.2rem !important; }
 /* ── Footer ────────────────────────────────────────────────────────── */
 #MainMenu      { visibility: hidden; }
 footer         { visibility: hidden; }
-header         { visibility: hidden; }
+/* header kept visible so the sidebar toggle stays accessible */
+#header         { visibility: hidden; }
 
 /* ── Labels ────────────────────────────────────────────────────────── */
 label, .stSelectbox label, .stDateInput label, .stTextInput label {
