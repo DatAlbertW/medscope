@@ -116,8 +116,27 @@ def classify_batch(client: Groq, papers: list[Paper], molecule: str,
                    progress_cb=None) -> list[Paper]:
     """Classify a list of papers. Calls progress_cb(i, total) after each paper."""
     total = len(papers)
+    # Debug counters
+    stats = {"INCLUDE": 0, "EXCLUDE_fast": 0, "EXCLUDE_llm": 0,
+             "by_category": {}, "sample_reasons": []}
     for i, p in enumerate(papers):
         classify(client, p, molecule)
+        if p.decision == "INCLUDE":
+            stats["INCLUDE"] += 1
+            cat = p.category or "none"
+            stats["by_category"][cat] = stats["by_category"].get(cat, 0) + 1
+        else:
+            if "Fast-excluded" in (p.reasoning or ""):
+                stats["EXCLUDE_fast"] += 1
+            else:
+                stats["EXCLUDE_llm"] += 1
+                if len(stats["sample_reasons"]) < 10:
+                    stats["sample_reasons"].append(
+                        f"[{p.pmid}] {p.title[:60]}... → {p.reasoning[:100]}"
+                    )
         if progress_cb:
             progress_cb(i + 1, total)
+    # Attach stats to the first paper so they surface in warnings
+    if papers:
+        papers[0]._classify_stats = stats  # type: ignore
     return papers
