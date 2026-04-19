@@ -59,18 +59,17 @@ def _get(endpoint: str, params: dict) -> requests.Response:
 
 def build_query(
     molecule: str,
-    year_from: int | None = None,
-    year_to: int | None = None,
+    date_from: str | int | None = None,
+    date_to: str | int | None = None,
     language: list[str] | None = None,
 ) -> str:
     """
     Build a PubMed query string using field tags.
-    Always searches by the canonical generic name. Exclusions for
-    animal-only papers are applied via NOT filters.
+    `date_from` / `date_to` accept either a year int (e.g. 2024) or a
+    'YYYY/MM' string (e.g. '2024/03').
     """
     parts = [f'"{molecule}"[Title/Abstract]']
 
-    # Language filter
     if language:
         lang_clause = " OR ".join(f'"{l}"[Language]' for l in language)
         parts.append(f"({lang_clause})")
@@ -78,15 +77,18 @@ def build_query(
         lang_clause = " OR ".join(f'"{l}"[Language]' for l in filters.LANGUAGE_FILTER)
         parts.append(f"({lang_clause})")
 
-    # Date range
-    if year_from and year_to:
-        parts.append(f'("{year_from}"[PDAT] : "{year_to}"[PDAT])')
-    elif year_from:
-        parts.append(f'("{year_from}"[PDAT] : "3000"[PDAT])')
+    def _fmt(d, default):
+        if d is None:
+            return default
+        s = str(d)
+        return s if "/" in s else f"{s}/01"
 
-    # Exclude animal-only where possible
+    if date_from or date_to:
+        df = _fmt(date_from, "2000/01")
+        dt = _fmt(date_to, "3000/12")
+        parts.append(f'("{df}"[PDAT] : "{dt}"[PDAT])')
+
     animal_filter = '("animals"[MeSH Terms] NOT "humans"[MeSH Terms])'
-    # Combine base clauses with AND, then apply NOT filter at the end
     base = " AND ".join(parts)
     return f"{base} NOT {animal_filter}"
 
