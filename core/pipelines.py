@@ -121,18 +121,25 @@ def run_full_pipeline(
     query = pubmed_client.build_query(molecule, year_from, year_to)
     total_hits = pubmed_client.count_matches(query)
 
-    # ── 3. Fetch papers ──────────────────────────────────────────────────────
+# ── 3. Fetch papers ──────────────────────────────────────────────────────
     _p("Searching PubMed", 0, 1)
     pmids = pubmed_client.search_pmids(query, retmax=filters.MAX_PAPERS_PER_SEARCH)
     _p("Searching PubMed", 1, 1)
+    warnings.append(f"DEBUG: query returned {len(pmids)} PMIDs")
+    warnings.append(f"DEBUG: query text was: {query[:200]}")
 
     if not pmids:
+        warnings.append("DEBUG: no PMIDs, returning empty report")
         return _empty_report(molecule, mol_entry, query, total_hits,
-                             year_from, year_to, warnings, start)
+                             date_from, date_to, warnings, start)
 
     _p("Fetching paper details", 0, len(pmids))
     papers = pubmed_client.fetch_papers(pmids)
     _p("Fetching paper details", len(papers), len(pmids))
+    warnings.append(f"DEBUG: fetched {len(papers)} papers from {len(pmids)} PMIDs")
+    if papers:
+        warnings.append(f"DEBUG: first paper title: {papers[0].title[:80]}")
+        warnings.append(f"DEBUG: first paper abstract length: {len(papers[0].abstract)}")
 
     # ── 4. Classify ──────────────────────────────────────────────────────────
     def _classify_progress(done, total):
