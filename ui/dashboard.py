@@ -70,6 +70,11 @@ def _render_header(report: MoleculeReport) -> None:
         unsafe_allow_html=True,
     )
 
+# DEBUG: show pipeline warnings
+    if report.pipeline_warnings:
+        with st.expander("Debug info (pipeline warnings)"):
+            for w in report.pipeline_warnings:
+                st.caption(w)
 
 # ════════════════════════════════════════════════════════════════════════════
 #  STATS ROW — one card per category
