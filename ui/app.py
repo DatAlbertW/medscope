@@ -77,9 +77,9 @@ if report is None:
         '<div class="stat-card">'
         '<div class="label">Step 1</div>'
         '<div style="font-family:Fraunces,serif;font-size:1.4rem;line-height:1.3;'
-        'margin-top:4px;color:var(--ink);">Enter your Groq key</div>'
+        'margin-top:4px;color:var(--ink);">Enter your Anthropic key</div>'
         '<div style="color:var(--ink-faint);font-size:0.85rem;margin-top:6px;">'
-        'Free at console.groq.com'
+        'Free at console.anthropic.com'
         '</div>'
         '</div>',
         unsafe_allow_html=True,
