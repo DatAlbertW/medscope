@@ -95,6 +95,13 @@ def classify(client: Groq, paper: Paper, molecule: str) -> Paper:
         max_tokens=300,
     )
 
+    # If the LLM call failed, surface the real error in `reasoning`
+    if "_error" in result:
+        paper.decision = "EXCLUDE"
+        paper.category = None
+        paper.reasoning = f"LLM error: {result['_error']}"[:300]
+        return paper
+
     decision = str(result.get("decision", "EXCLUDE")).upper()
     paper.decision = "INCLUDE" if decision == "INCLUDE" else "EXCLUDE"
     paper.category = result.get("category") if paper.decision == "INCLUDE" else None
