@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 from typing import Iterator
 
-from groq import Groq
+from anthropic import Anthropic
 
 from core.llm_client import stream_text
 from core.models import MoleculeReport
@@ -168,7 +168,7 @@ def build_context(report: MoleculeReport, max_papers_per_cat: int = 10) -> str:
 # ════════════════════════════════════════════════════════════════════════════
 
 def ask(
-    client: Groq,
+    client: Anthropic,
     report: MoleculeReport,
     question_id: str,
 ) -> Iterator[str]:
