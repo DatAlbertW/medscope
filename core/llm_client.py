@@ -173,4 +173,4 @@ def safe_json_call(
     try:
         return complete_json(client, system, user, max_tokens=max_tokens)
     except Exception as e:
-        return {**fallback, "_error": str(e)[:120]}
+        return {**fallback, "_error": f"{type(e).__name__}: {str(e)[:300]}"}
