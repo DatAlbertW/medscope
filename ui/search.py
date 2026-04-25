@@ -1,7 +1,7 @@
 """
 Search panel: molecule input, date range, preview count, fetch trigger.
 
-Renders in the sidebar. Writes results to st.session_state:
+Renders in the sidebar or top region. Writes results to st.session_state:
     - st.session_state.preview: dict from pipelines.preview_search()
     - st.session_state.report:  MoleculeReport from pipelines.run_full_pipeline()
 """
@@ -15,14 +15,7 @@ from config import filters
 from config.molecules import get_all_generics
 from core import pipelines
 from core.llm_client import get_client
-
-
-# Section label helper that renders inside the sidebar
-def _sidebar_label(text: str) -> None:
-    st.sidebar.markdown(
-        f'<div class="section-label">{text}</div>',
-        unsafe_allow_html=True,
-    )
+from ui.styles import section_label
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -39,21 +32,13 @@ def render_sidebar_search() -> None:
         unsafe_allow_html=True,
     )
 
-    # ── Groq key ─────────────────────────────────────────────────────────
-    # Pre-fill from secrets if available
-    default_key = ""
-    try:
-        default_key = st.secrets.get("GROQ_API_KEY", "")
-    except Exception:
-        default_key = ""
-
-    _sidebar_label("API key")
+    # ── Anthropic key ─────────────────────────────────────────────────────────
+    section_label("API key")
     groq_key = st.sidebar.text_input(
-        "Groq API key",
-        value=default_key,
+        "Anthropic API key",
         type="password",
-        placeholder="gsk_...",
-        help="Free key at console.groq.com",
+        placeholder="sk-ant-...",
+        help="Get a key at console.anthropic.com",
         key="groq_key_input",
         label_visibility="collapsed",
     )
@@ -61,7 +46,7 @@ def render_sidebar_search() -> None:
     st.sidebar.markdown('<div class="rule-thin"></div>', unsafe_allow_html=True)
 
     # ── Molecule input ───────────────────────────────────────────────────
-    _sidebar_label("Molecule")
+    section_label("Molecule")
     molecule_options = ["— type to search —"] + sorted(get_all_generics())
     picked = st.sidebar.selectbox(
         "Pick from list",
@@ -77,48 +62,29 @@ def render_sidebar_search() -> None:
         label_visibility="collapsed",
     )
 
+    # Decide which input to use
     user_input = free_text.strip() if free_text.strip() else (
         picked if picked != "— type to search —" else ""
     )
 
     st.sidebar.markdown('<div class="rule-thin"></div>', unsafe_allow_html=True)
 
-    # ── Date range (month + year) ────────────────────────────────────────
-    current = datetime.now()
-    default_from_year = current.year - filters.DEFAULT_LOOKBACK_YEARS
+    # ── Date range ───────────────────────────────────────────────────────
+    current_year = datetime.now().year
+    default_from = current_year - filters.DEFAULT_LOOKBACK_YEARS
 
-    MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
-              "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-    year_range = list(range(current.year, filters.MIN_SEARCH_YEAR - 1, -1))
-
-    _sidebar_label("From")
-    col1, col2 = st.sidebar.columns([1, 1])
-    month_from = col1.selectbox(
-        "Month from", MONTHS, index=0,
-        key="month_from", label_visibility="collapsed",
+    section_label("Date range")
+    col1, col2 = st.sidebar.columns(2)
+    year_from = col1.number_input(
+        "From", min_value=filters.MIN_SEARCH_YEAR, max_value=current_year,
+        value=default_from, step=1, key="year_from", label_visibility="collapsed",
     )
-    year_from = col2.selectbox(
-        "Year from", year_range,
-        index=year_range.index(default_from_year),
-        key="year_from", label_visibility="collapsed",
+    year_to = col2.number_input(
+        "To", min_value=filters.MIN_SEARCH_YEAR, max_value=current_year,
+        value=current_year, step=1, key="year_to", label_visibility="collapsed",
     )
 
-    _sidebar_label("To")
-    col3, col4 = st.sidebar.columns([1, 1])
-    month_to = col3.selectbox(
-        "Month to", MONTHS, index=current.month - 1,
-        key="month_to", label_visibility="collapsed",
-    )
-    year_to = col4.selectbox(
-        "Year to", year_range, index=0,
-        key="year_to", label_visibility="collapsed",
-    )
-
-    # Encode as YYYY/MM for PubMed's PDAT field
-    month_from_num = MONTHS.index(month_from) + 1
-    month_to_num = MONTHS.index(month_to) + 1
-    date_from = f"{year_from}/{month_from_num:02d}"
-    date_to = f"{year_to}/{month_to_num:02d}"
+    st.sidebar.markdown('<div class="rule-thin"></div>', unsafe_allow_html=True)
 
     # ── Preview button ───────────────────────────────────────────────────
     if st.sidebar.button("Preview search", key="btn_preview", use_container_width=True):
@@ -126,10 +92,11 @@ def render_sidebar_search() -> None:
             st.sidebar.warning("Enter or pick a molecule first.")
         else:
             with st.spinner("Checking PubMed..."):
-                preview = pipelines.preview_search(user_input, date_from, date_to)
+                preview = pipelines.preview_search(user_input, int(year_from), int(year_to))
             st.session_state.preview = preview
-            st.session_state.report = None
+            st.session_state.report = None   # invalidate any prior report
 
+    # ── Show preview result ──────────────────────────────────────────────
     preview = st.session_state.get("preview")
     if preview:
         _render_preview_result(preview)
@@ -138,9 +105,9 @@ def render_sidebar_search() -> None:
             fetch_msg = f"Run full analysis on {preview['will_fetch']} papers"
             if st.sidebar.button(fetch_msg, key="btn_fetch", use_container_width=True):
                 if not groq_key:
-                    st.sidebar.error("Groq API key required for analysis.")
+                    st.sidebar.error("Anthropic API key required for analysis.")
                 else:
-                    _run_pipeline(groq_key, preview, date_from, date_to)
+                    _run_pipeline(groq_key, preview, int(year_from), int(year_to))
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -148,6 +115,7 @@ def render_sidebar_search() -> None:
 # ════════════════════════════════════════════════════════════════════════════
 
 def _render_preview_result(preview: dict) -> None:
+    """Show the outcome of a preview call in the sidebar."""
     if not preview.get("resolved"):
         st.sidebar.error(preview.get("message", "Could not resolve molecule."))
         return
@@ -177,6 +145,7 @@ def _render_preview_result(preview: dict) -> None:
 
 
 def _run_pipeline(groq_key: str, preview: dict, year_from: int, year_to: int) -> None:
+    """Run the full pipeline with live progress feedback."""
     progress = st.sidebar.progress(0, text="Starting...")
     status = st.sidebar.empty()
 
