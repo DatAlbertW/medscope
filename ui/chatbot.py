@@ -54,7 +54,7 @@ def render(report: MoleculeReport) -> None:
     if ask and not ask_disabled:
         groq_key = st.session_state.get("groq_key_input", "")
         if not groq_key:
-            st.error("Groq API key required. Enter it in the sidebar.")
+            st.error("Anthropic API key required. Enter it in the sidebar.")
         else:
             qid = label_to_id[picked_label]
             _stream_answer(groq_key, report, qid, picked_label)
