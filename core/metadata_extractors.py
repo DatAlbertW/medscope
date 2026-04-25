@@ -13,7 +13,7 @@ in the relevant category) to avoid wasting LLM tokens.
 """
 from __future__ import annotations
 
-from groq import Groq
+from anthropic import Anthropic
 
 from config.prompts import (
     EXTRACT_TRIAL_METADATA_PROMPT,
@@ -45,7 +45,7 @@ _SAFETY_FALLBACK = {
 #  TRIAL METADATA
 # ════════════════════════════════════════════════════════════════════════════
 
-def extract_trial_metadata(client: Groq, paper: Paper) -> dict:
+def extract_trial_metadata(client: Anthropic, paper: Paper) -> dict:
     if not paper.abstract:
         return dict(_TRIAL_FALLBACK)
 
@@ -66,7 +66,7 @@ def extract_trial_metadata(client: Groq, paper: Paper) -> dict:
 #  SAFETY METADATA
 # ════════════════════════════════════════════════════════════════════════════
 
-def extract_safety_metadata(client: Groq, paper: Paper) -> dict:
+def extract_safety_metadata(client: Anthropic, paper: Paper) -> dict:
     if not paper.abstract:
         return dict(_SAFETY_FALLBACK)
 
