@@ -24,7 +24,7 @@ from __future__ import annotations
 import time
 from typing import Callable
 
-from groq import Groq
+from anthropic import Anthropic
 
 from config import filters, scoring
 from config.categories import CATEGORIES
@@ -53,8 +53,8 @@ ProgressCb = Callable[[str, int, int], None] | None
 
 def preview_search(
     user_input: str,
-    date_from,
-    date_to,
+    year_from: int,
+    year_to: int,
 ) -> dict:
     """
     Resolve user input to a generic name and return how many papers PubMed
@@ -70,7 +70,7 @@ def preview_search(
             "message": f"Could not resolve '{user_input}' to a tracked molecule.",
         }
 
-    query = pubmed_client.build_query(resolved.generic, date_from, date_to)
+    query = pubmed_client.build_query(resolved.generic, year_from, year_to)
     count = pubmed_client.count_matches(query)
 
     return {
@@ -91,7 +91,7 @@ def preview_search(
 # ════════════════════════════════════════════════════════════════════════════
 
 def run_full_pipeline(
-    client: Groq,
+    client: Anthropic,
     user_input: str,
     year_from: int,
     year_to: int,
@@ -121,40 +121,24 @@ def run_full_pipeline(
     query = pubmed_client.build_query(molecule, year_from, year_to)
     total_hits = pubmed_client.count_matches(query)
 
-# ── 3. Fetch papers ──────────────────────────────────────────────────────
+    # ── 3. Fetch papers ──────────────────────────────────────────────────────
     _p("Searching PubMed", 0, 1)
     pmids = pubmed_client.search_pmids(query, retmax=filters.MAX_PAPERS_PER_SEARCH)
     _p("Searching PubMed", 1, 1)
-    warnings.append(f"DEBUG: query returned {len(pmids)} PMIDs")
-    warnings.append(f"DEBUG: query text was: {query[:200]}")
 
     if not pmids:
-        warnings.append("DEBUG: no PMIDs, returning empty report")
         return _empty_report(molecule, mol_entry, query, total_hits,
-                             date_from, date_to, warnings, start)
+                             year_from, year_to, warnings, start)
 
     _p("Fetching paper details", 0, len(pmids))
     papers = pubmed_client.fetch_papers(pmids)
     _p("Fetching paper details", len(papers), len(pmids))
-    warnings.append(f"DEBUG: fetched {len(papers)} papers from {len(pmids)} PMIDs")
-    if papers:
-        warnings.append(f"DEBUG: first paper title: {papers[0].title[:80]}")
-        warnings.append(f"DEBUG: first paper abstract length: {len(papers[0].abstract)}")
 
     # ── 4. Classify ──────────────────────────────────────────────────────────
     def _classify_progress(done, total):
         _p("Classifying papers", done, total)
 
     classifier.classify_batch(client, papers, molecule, progress_cb=_classify_progress)
-    # DEBUG surface classification stats
-    if papers and hasattr(papers[0], "_classify_stats"):
-        stats = papers[0]._classify_stats
-        warnings.append(f"DEBUG: classified INCLUDE={stats['INCLUDE']}, "
-                        f"EXCLUDE_fast={stats['EXCLUDE_fast']}, "
-                        f"EXCLUDE_llm={stats['EXCLUDE_llm']}")
-        warnings.append(f"DEBUG: by category: {stats['by_category']}")
-        for r in stats["sample_reasons"]:
-            warnings.append(f"DEBUG: {r}")
 
     included = [p for p in papers if p.decision == "INCLUDE" and p.category]
 
