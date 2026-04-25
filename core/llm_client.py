@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import re
 from typing import Any
+import time as _time
 
 from groq import Groq
 
@@ -44,22 +45,37 @@ def complete_json(
     max_tokens: int = 500,
     temperature: float = 0.1,
     model: str = DEFAULT_MODEL,
+    max_retries: int = 4,
 ) -> dict:
     """
     Send a prompt to Groq expecting a JSON response.
-    Returns a parsed dict, or raises ValueError with the raw response if parsing fails.
+    Retries on rate limits with exponential backoff.
     """
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": system},
-            {"role": "user", "content": user},
-        ],
-        temperature=temperature,
-        max_tokens=max_tokens,
-    )
-    raw = response.choices[0].message.content.strip()
-    return parse_json(raw)
+    last_err = None
+    for attempt in range(max_retries):
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user},
+                ],
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+            raw = response.choices[0].message.content.strip()
+            return parse_json(raw)
+        except Exception as e:
+            last_err = e
+            err_str = str(e).lower()
+            # Rate-limit error: back off and retry
+            if "429" in err_str or "rate limit" in err_str:
+                wait = (2 ** attempt) + 1   # 2, 3, 5, 9 seconds
+                _time.sleep(wait)
+                continue
+            # Other errors: give up immediately
+            raise
+    raise last_err if last_err else RuntimeError("complete_json failed")
 
 
 def complete_text(
