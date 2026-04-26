@@ -77,13 +77,11 @@ def get_sjr(journal_name: str) -> tuple[float | None, str | None]:
 # ════════════════════════════════════════════════════════════════════════════
 
 def _ensure_cache_loaded() -> None:
-    """Load cache from disk, downloading if necessary. Idempotent and thread-safe."""
+    """Load cache from disk. The CSV is bundled with the repo at data/sjr_scores.csv."""
     global _cache_loaded
     with _cache_lock:
         if _cache_loaded:
             return
-        if not os.path.exists(DATA_PATH):
-            _download_scimago()
         _load_from_disk()
         _cache_loaded = True
 
