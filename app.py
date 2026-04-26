@@ -65,29 +65,18 @@ if report is None:
         '<div style="margin-top:-0.5rem;color:var(--ink-soft);font-size:1.15rem;'
         'margin-bottom:2.5rem;max-width:680px;line-height:1.5;">'
         'Literature and evidence intelligence for medical affairs and publication planning. '
-        'Pick a molecule, set a date range, and run the pipeline.'
+        'Pick a molecule, narrow by therapeutic area, set a date range, and run the analysis.'
         '</div>',
         unsafe_allow_html=True,
     )
 
     styles.rule()
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     col1.markdown(
         '<div class="stat-card">'
         '<div class="label">Step 1</div>'
-        '<div style="font-family:Fraunces,serif;font-size:1.4rem;line-height:1.3;'
-        'margin-top:4px;color:var(--ink);">Enter your Groq key</div>'
-        '<div style="color:var(--ink-faint);font-size:0.85rem;margin-top:6px;">'
-        'Free at console.groq.com'
-        '</div>'
-        '</div>',
-        unsafe_allow_html=True,
-    )
-    col2.markdown(
-        '<div class="stat-card">'
-        '<div class="label">Step 2</div>'
-        '<div style="font-family:Fraunces,serif;font-size:1.4rem;line-height:1.3;'
+        '<div style="font-family:Fraunces,serif;font-size:1.3rem;line-height:1.3;'
         'margin-top:4px;color:var(--ink);">Pick a molecule</div>'
         '<div style="color:var(--ink-faint);font-size:0.85rem;margin-top:6px;">'
         'Generic, brand, or synonym'
@@ -95,10 +84,32 @@ if report is None:
         '</div>',
         unsafe_allow_html=True,
     )
+    col2.markdown(
+        '<div class="stat-card">'
+        '<div class="label">Step 2</div>'
+        '<div style="font-family:Fraunces,serif;font-size:1.3rem;line-height:1.3;'
+        'margin-top:4px;color:var(--ink);">Narrow by therapeutic area</div>'
+        '<div style="color:var(--ink-faint);font-size:0.85rem;margin-top:6px;">'
+        'Optional, single or multiple'
+        '</div>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
     col3.markdown(
         '<div class="stat-card">'
         '<div class="label">Step 3</div>'
-        '<div style="font-family:Fraunces,serif;font-size:1.4rem;line-height:1.3;'
+        '<div style="font-family:Fraunces,serif;font-size:1.3rem;line-height:1.3;'
+        'margin-top:4px;color:var(--ink);">Set the date range</div>'
+        '<div style="color:var(--ink-faint);font-size:0.85rem;margin-top:6px;">'
+        'Month and year, From / To'
+        '</div>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+    col4.markdown(
+        '<div class="stat-card accent">'
+        '<div class="label">Step 4</div>'
+        '<div style="font-family:Fraunces,serif;font-size:1.3rem;line-height:1.3;'
         'margin-top:4px;color:var(--ink);">Run the analysis</div>'
         '<div style="color:var(--ink-faint);font-size:0.85rem;margin-top:6px;">'
         'Preview first, then fetch'
@@ -114,10 +125,10 @@ if report is None:
         '<div style="color:var(--ink-soft);font-size:0.95rem;line-height:1.7;max-width:740px;">'
         'MedScope searches PubMed for a molecule, classifies each paper into one of '
         'four categories (clinically relevant, safety & efficacy, trial results, '
-        'real-world evidence), extracts structured metadata, scores each paper by '
-        'journal prestige and citation count, and assembles a dashboard that a '
-        'medical affairs team can act on. A built-in assistant answers '
-        'questions about the loaded evidence using only the data on screen.'
+        'real-world evidence), extracts structured metadata, and scores each paper '
+        'on relevance to your search, journal prestige, and citation impact. The '
+        'result is a dashboard a medical affairs team can act on, plus an assistant '
+        'that answers questions about the loaded evidence using only the data on screen.'
         '</div>',
         unsafe_allow_html=True,
     )
@@ -159,4 +170,3 @@ st.markdown(
     '</div>',
     unsafe_allow_html=True,
 )
-
