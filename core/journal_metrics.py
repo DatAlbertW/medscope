@@ -30,7 +30,7 @@ SCIMAGO_CSV_URL = f"https://www.scimagojr.com/journalrank.php?out=xls&year={SCIM
 DATA_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
     "data",
-    "sjr_scores.csv",
+    "scimagojr_2025.csv",
 )
 
 
