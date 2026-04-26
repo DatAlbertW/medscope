@@ -52,14 +52,19 @@ def render(report: MoleculeReport) -> None:
 
     # ── Generate live answer ────────────────────────────────────────────────
     if ask and not ask_disabled:
-        groq_key = st.session_state.get("groq_key_input", "")
-        if not groq_key:
+        # Get key from secrets, then fall back to manually entered key
+        api_key = ""
+        try:
+            api_key = st.secrets.get("ANTHROPIC_API_KEY", "") or ""
+        except Exception:
+            api_key = ""
+        if not api_key:
+            api_key = st.session_state.get("manual_api_key", "")
+        if not api_key:
             st.error("Anthropic API key required. Enter it in the sidebar.")
         else:
             qid = label_to_id[picked_label]
-            _stream_answer(groq_key, report, qid, picked_label)
-
-    st.markdown('</div>', unsafe_allow_html=True)
+            _stream_answer(api_key, report, qid, picked_label)
 
 
 # ════════════════════════════════════════════════════════════════════════════
