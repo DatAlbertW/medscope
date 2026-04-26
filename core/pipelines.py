@@ -193,6 +193,13 @@ def run_full_pipeline(
         sjr, _ = journal_metrics.get_sjr(p.journal)
         p.sjr = sjr
         _p("Looking up journal rankings", i + 1, len(kept))
+    
+    # DEBUG: surface SJR lookup status
+    sjr_hits = sum(1 for p in kept if p.sjr is not None)
+    warnings.append(f"DEBUG: SJR resolved for {sjr_hits}/{len(kept)} papers")
+    if kept and sjr_hits == 0:
+        sample_journals = list({p.journal for p in kept[:5] if p.journal})
+        warnings.append(f"DEBUG: sample unmatched journals: {sample_journals}")
 
     for i, p in enumerate(kept):
         p.citations = citations_module.get_citations(doi=p.doi, pmid=p.pmid)
