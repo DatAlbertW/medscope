@@ -43,7 +43,10 @@ class Paper:
     # Scoring
     sjr: float | None = None
     citations: int | None = None
+    relevance: float | None = None          # LLM-scored 0-100
+    relevance_rationale: str = ""
     score: float = 0.0                      # composite 0-100
+    score_breakdown: dict | None = None     # raw + normalized values for tooltip
 
     # Optional extracted metadata (populated only if classified into relevant category)
     trial_metadata: dict | None = None      # for Trial Results

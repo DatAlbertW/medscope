@@ -62,14 +62,31 @@ def build_query(
     date_from: str | int | None = None,
     date_to: str | int | None = None,
     language: list[str] | None = None,
+    mesh_terms: list[str] | None = None,
 ) -> str:
     """
     Build a PubMed query string using field tags.
+    Always searches by the canonical generic name.
+
     `date_from` / `date_to` accept either a year int (e.g. 2024) or a
     'YYYY/MM' string (e.g. '2024/03').
+
+    `mesh_terms` (optional): MeSH terms to add as additional filters,
+    e.g. ['Breast Neoplasms', 'Carcinoma, Non-Small-Cell Lung'].
+    Multiple MeSH terms are joined with OR (any match is sufficient).
+
+    Animal-only papers are excluded via a NOT filter at the end.
     """
     parts = [f'"{molecule}"[Title/Abstract]']
 
+    # MeSH term filter (therapeutic area)
+    if mesh_terms:
+        mesh_clauses = [f'"{m}"[MeSH Terms]' for m in mesh_terms if m]
+        if mesh_clauses:
+            joined = " OR ".join(mesh_clauses)
+            parts.append(f"({joined})")
+
+    # Language filter
     if language:
         lang_clause = " OR ".join(f'"{l}"[Language]' for l in language)
         parts.append(f"({lang_clause})")
@@ -77,6 +94,7 @@ def build_query(
         lang_clause = " OR ".join(f'"{l}"[Language]' for l in filters.LANGUAGE_FILTER)
         parts.append(f"({lang_clause})")
 
+    # Date range — accept either year ints or 'YYYY/MM' strings
     def _fmt(d, default):
         if d is None:
             return default

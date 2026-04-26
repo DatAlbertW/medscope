@@ -1,23 +1,22 @@
 """
-The end-to-end orchestration pipeline.
+End-to-end pipeline orchestration.
 
-Given a user's search (molecule + date range), this module produces
-a fully populated MoleculeReport ready for the UI to render.
+Two public entry points:
+    - preview_search(): cheap, just resolves and counts PubMed hits
+    - run_full_pipeline(): full search, classify, enrich, score, aggregate
 
-Pipeline stages:
-    1. Resolve user input to canonical generic name (drug_resolver)
-    2. Build PubMed query and preview count (pubmed_client)
-    3. Fetch up to MAX_PAPERS_PER_SEARCH papers (pubmed_client)
-    4. Classify each paper into one of the 4 categories (classifier)
-    5. Extract structured metadata (geo / trial / safety) for category papers
-    6. Enrich with SJR (journal_metrics) and citations (citations)
-    7. Compute composite scores (config/scoring)
-    8. Cap each category to MAX_PAPERS_PER_CATEGORY
-    9. Build aggregates (aggregator)
-   10. Attach market context (config/mock_market_data)
+Stages (run_full_pipeline):
+    1. Resolve user input → canonical generic name
+    2. Build PubMed query (with optional MeSH filters from therapeutic areas)
+    3. Search + fetch papers
+    4. Classify each paper into one of the 4 categories
+    5. Extract structured metadata (geo, trial, safety) per category
+    6. Score relevance via LLM
+    7. Look up SJR and citation counts
+    8. Compute composite score
+    9. Cap and sort each category
+   10. Build dashboard aggregates
    11. Return MoleculeReport
-
-The pipeline accepts progress callbacks so the UI can show live progress.
 """
 from __future__ import annotations
 
@@ -30,6 +29,7 @@ from config import filters, scoring
 from config.categories import CATEGORIES
 from config.mock_market_data import get_market_data
 from config.molecules import get_molecule
+from config.therapeutic_areas import get_mesh_terms
 
 from core import (
     aggregator,
@@ -40,6 +40,7 @@ from core import (
     journal_metrics,
     metadata_extractors,
     pubmed_client,
+    relevance as relevance_module,
 )
 from core.models import MoleculeReport, Paper
 
@@ -48,17 +49,18 @@ ProgressCb = Callable[[str, int, int], None] | None
 
 
 # ════════════════════════════════════════════════════════════════════════════
-#  PREVIEW (cheap — just resolves the molecule and counts PubMed hits)
+#  PREVIEW
 # ════════════════════════════════════════════════════════════════════════════
 
 def preview_search(
     user_input: str,
-    year_from: int,
-    year_to: int,
+    date_from,
+    date_to,
+    therapeutic_areas: list[str] | None = None,
 ) -> dict:
     """
-    Resolve user input to a generic name and return how many papers PubMed
-    has for that search. Does NOT fetch or classify anything.
+    Resolve user input and count PubMed hits without fetching anything.
+    `therapeutic_areas` is a list of leaf labels from config/therapeutic_areas.py.
     """
     resolved = drug_resolver.resolve(user_input)
     if not resolved.resolved:
@@ -70,7 +72,10 @@ def preview_search(
             "message": f"Could not resolve '{user_input}' to a tracked molecule.",
         }
 
-    query = pubmed_client.build_query(resolved.generic, year_from, year_to)
+    mesh = get_mesh_terms(therapeutic_areas) if therapeutic_areas else None
+    query = pubmed_client.build_query(
+        resolved.generic, date_from, date_to, mesh_terms=mesh,
+    )
     count = pubmed_client.count_matches(query)
 
     return {
@@ -80,6 +85,8 @@ def preview_search(
         "matched_term": resolved.matched_term,
         "match_type": resolved.match_type,
         "match_confidence": resolved.confidence,
+        "therapeutic_areas": therapeutic_areas or [],
+        "mesh_terms": mesh or [],
         "hit_count": count,
         "will_fetch": min(count, filters.MAX_PAPERS_PER_SEARCH),
         "query": query,
@@ -93,14 +100,12 @@ def preview_search(
 def run_full_pipeline(
     client: Anthropic,
     user_input: str,
-    year_from: int,
-    year_to: int,
+    date_from,
+    date_to,
+    therapeutic_areas: list[str] | None = None,
     progress_cb: ProgressCb = None,
 ) -> MoleculeReport:
-    """
-    Run the full end-to-end pipeline. Returns a populated MoleculeReport.
-    `progress_cb(stage_name, done, total)` is invoked throughout.
-    """
+    """Run the full pipeline. Returns a populated MoleculeReport."""
     start = time.time()
     warnings: list[str] = []
 
@@ -108,7 +113,7 @@ def run_full_pipeline(
         if progress_cb:
             progress_cb(stage, done, total)
 
-    # ── 1. Resolve ───────────────────────────────────────────────────────────
+    # ── 1. Resolve molecule ──────────────────────────────────────────────────
     _p("Resolving molecule", 0, 1)
     resolved = drug_resolver.resolve(user_input)
     if not resolved.resolved:
@@ -117,38 +122,38 @@ def run_full_pipeline(
     mol_entry = resolved.molecule_entry or get_molecule(molecule) or {}
     _p("Resolving molecule", 1, 1)
 
-    # ── 2. Build query + preview count ───────────────────────────────────────
-    query = pubmed_client.build_query(molecule, year_from, year_to)
+    # ── 2. Build query ───────────────────────────────────────────────────────
+    mesh = get_mesh_terms(therapeutic_areas) if therapeutic_areas else None
+    query = pubmed_client.build_query(molecule, date_from, date_to, mesh_terms=mesh)
     total_hits = pubmed_client.count_matches(query)
 
-    # ── 3. Fetch papers ──────────────────────────────────────────────────────
+    # ── 3. Search + fetch ────────────────────────────────────────────────────
     _p("Searching PubMed", 0, 1)
     pmids = pubmed_client.search_pmids(query, retmax=filters.MAX_PAPERS_PER_SEARCH)
     _p("Searching PubMed", 1, 1)
 
     if not pmids:
         return _empty_report(molecule, mol_entry, query, total_hits,
-                             year_from, year_to, warnings, start)
+                             date_from, date_to, therapeutic_areas,
+                             warnings, start)
 
     _p("Fetching paper details", 0, len(pmids))
     papers = pubmed_client.fetch_papers(pmids)
     _p("Fetching paper details", len(papers), len(pmids))
 
     # ── 4. Classify ──────────────────────────────────────────────────────────
-    def _classify_progress(done, total):
-        _p("Classifying papers", done, total)
-
-    classifier.classify_batch(client, papers, molecule, progress_cb=_classify_progress)
+    classifier.classify_batch(
+        client, papers, molecule,
+        progress_cb=lambda d, t: _p("Classifying papers", d, t),
+    )
 
     included = [p for p in papers if p.decision == "INCLUDE" and p.category]
 
-    # ── 5. Group by category + cap ──────────────────────────────────────────
     by_category: dict[str, list[Paper]] = {cid: [] for cid in CATEGORIES}
     for p in included:
         if p.category in by_category:
             by_category[p.category].append(p)
 
-    # Cap to MAX_PAPERS_PER_CATEGORY (we'll re-sort after scoring)
     for cid, plist in by_category.items():
         if len(plist) > filters.MAX_PAPERS_PER_CATEGORY:
             by_category[cid] = plist[:filters.MAX_PAPERS_PER_CATEGORY]
@@ -156,64 +161,72 @@ def run_full_pipeline(
                 f"Category '{cid}' truncated to {filters.MAX_PAPERS_PER_CATEGORY} papers"
             )
 
-    # Flatten for enrichment steps
     kept = [p for plist in by_category.values() for p in plist]
 
-    # ── 6. Extract structured metadata for relevant categories ──────────────
-    _p("Extracting trial metadata", 0, len(by_category.get("trial_results", [])))
-    for i, p in enumerate(by_category.get("trial_results", [])):
-        p.trial_metadata = metadata_extractors.extract_trial_metadata(client, p)
-        _p("Extracting trial metadata", i + 1, len(by_category["trial_results"]))
+    # ── 5. Extract structured metadata per category ─────────────────────────
+    if by_category.get("trial_results"):
+        trial_papers = by_category["trial_results"]
+        for i, p in enumerate(trial_papers):
+            p.trial_metadata = metadata_extractors.extract_trial_metadata(client, p)
+            _p("Extracting trial metadata", i + 1, len(trial_papers))
 
-    _p("Extracting safety signals", 0, len(by_category.get("safety_efficacy", [])))
-    for i, p in enumerate(by_category.get("safety_efficacy", [])):
-        p.safety_metadata = metadata_extractors.extract_safety_metadata(client, p)
-        _p("Extracting safety signals", i + 1, len(by_category["safety_efficacy"]))
+    if by_category.get("safety_efficacy"):
+        safety_papers = by_category["safety_efficacy"]
+        for i, p in enumerate(safety_papers):
+            p.safety_metadata = metadata_extractors.extract_safety_metadata(client, p)
+            _p("Extracting safety signals", i + 1, len(safety_papers))
 
-    _p("Extracting geography", 0, len(by_category.get("real_world_evidence", [])))
-    for i, p in enumerate(by_category.get("real_world_evidence", [])):
-        p.geography = geo_extractor.extract_geography(client, p)
-        _p("Extracting geography", i + 1, len(by_category["real_world_evidence"]))
+    if by_category.get("real_world_evidence"):
+        rwe_papers = by_category["real_world_evidence"]
+        for i, p in enumerate(rwe_papers):
+            p.geography = geo_extractor.extract_geography(client, p)
+            _p("Extracting geography", i + 1, len(rwe_papers))
 
-    # ── 7. Enrich with SJR ──────────────────────────────────────────────────
-    _p("Looking up journal rankings", 0, len(kept))
+    # ── 6. Score relevance via LLM ──────────────────────────────────────────
+    relevance_module.score_relevance_batch(
+        client, kept, molecule, therapeutic_areas,
+        progress_cb=lambda d, t: _p("Scoring relevance", d, t),
+    )
+
+    # ── 7. Enrich with SJR + citations ──────────────────────────────────────
     for i, p in enumerate(kept):
         sjr, _ = journal_metrics.get_sjr(p.journal)
         p.sjr = sjr
         _p("Looking up journal rankings", i + 1, len(kept))
 
-    # ── 8. Enrich with citations ────────────────────────────────────────────
-    _p("Fetching citation counts", 0, len(kept))
     for i, p in enumerate(kept):
         p.citations = citations_module.get_citations(doi=p.doi, pmid=p.pmid)
         _p("Fetching citation counts", i + 1, len(kept))
 
-    # ── 9. Compute composite scores ─────────────────────────────────────────
+    # ── 8. Composite score + breakdown ──────────────────────────────────────
     for p in kept:
-        p.score = scoring.composite_score(p.sjr, p.citations)
+        p.score = scoring.composite_score(p.sjr, p.citations, p.relevance)
+        p.score_breakdown = scoring.score_breakdown(p.sjr, p.citations, p.relevance)
 
-    # Re-sort each category by score descending
+    # Re-sort by score
     for cid in by_category:
         by_category[cid].sort(key=lambda p: p.score, reverse=True)
 
-    # ── 10. Build aggregates ────────────────────────────────────────────────
+    # ── 9. Aggregates ───────────────────────────────────────────────────────
     _p("Building dashboard aggregates", 0, 1)
     aggregates = aggregator.build_aggregates(by_category)
     _p("Building dashboard aggregates", 1, 1)
 
-    # ── 11. Assemble report ─────────────────────────────────────────────────
+    # ── 10. Assemble report ─────────────────────────────────────────────────
     counts = {cid: len(plist) for cid, plist in by_category.items()}
-    report = MoleculeReport(
+    return MoleculeReport(
         molecule=molecule,
         drug_class=mol_entry.get("drug_class", ""),
         indication_hint=mol_entry.get("indication_hint", ""),
         search_params={
-            "user_input":   user_input,
-            "matched_term": resolved.matched_term,
-            "match_type":   resolved.match_type,
-            "year_from":    year_from,
-            "year_to":      year_to,
-            "query":        query,
+            "user_input":         user_input,
+            "matched_term":       resolved.matched_term,
+            "match_type":         resolved.match_type,
+            "date_from":          date_from,
+            "date_to":            date_to,
+            "therapeutic_areas":  therapeutic_areas or [],
+            "mesh_terms":         mesh or [],
+            "query":              query,
         },
         total_pubmed_hits=total_hits,
         total_fetched=len(papers),
@@ -225,7 +238,6 @@ def run_full_pipeline(
         elapsed_seconds=round(time.time() - start, 1),
         pipeline_warnings=warnings,
     )
-    return report
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -237,20 +249,22 @@ def _empty_report(
     mol_entry: dict,
     query: str,
     total_hits: int,
-    year_from: int,
-    year_to: int,
+    date_from,
+    date_to,
+    therapeutic_areas: list[str] | None,
     warnings: list[str],
     start: float,
 ) -> MoleculeReport:
-    """Build an empty report when no papers are found."""
+    """Build an empty MoleculeReport when no papers are found."""
     empty_by_cat = {cid: [] for cid in CATEGORIES}
     return MoleculeReport(
         molecule=molecule,
         drug_class=mol_entry.get("drug_class", ""),
         indication_hint=mol_entry.get("indication_hint", ""),
         search_params={
-            "year_from": year_from,
-            "year_to": year_to,
+            "date_from": date_from,
+            "date_to": date_to,
+            "therapeutic_areas": therapeutic_areas or [],
             "query": query,
         },
         total_pubmed_hits=total_hits,
