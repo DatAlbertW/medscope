@@ -124,3 +124,36 @@ Return ONLY valid JSON:
   "discontinuation_rate": "percent as string like '7.5%' or null",
   "efficacy_signal": "one-sentence efficacy takeaway <20 words, or null"
 }}"""
+
+
+# ════════════════════════════════════════════════════════════════════════════
+#  RELEVANCE SCORING PROMPT
+# ════════════════════════════════════════════════════════════════════════════
+# Scores how directly a paper addresses the searched molecule (and optional
+# therapeutic area). Output is 0-100 directly — no anchor normalisation.
+# Placeholders: {molecule}, {therapeutic_area_block}, {title}, {abstract}
+
+RELEVANCE_PROMPT = """Score how directly this paper advances clinical understanding of the molecule and (if specified) the therapeutic area.
+
+Molecule: {molecule}
+{therapeutic_area_block}
+Title: {title}
+Abstract: {abstract}
+
+Score on a 0-100 scale considering:
+- CENTRALITY: Is the paper actually ABOUT this molecule, or does it just mention it?
+- SPECIFICITY: Does it address the selected therapeutic area (if one was given)?
+- SUBSTANCE: Does it report meaningful new findings vs. being a brief commentary, news piece, or letter?
+
+Calibration anchors:
+- 90-100: Pivotal trial, major systematic review, or landmark study directly on this molecule (and therapeutic area)
+- 70-89:  Substantive original research squarely on this molecule
+- 50-69:  Relevant review, secondary analysis, or related condition
+- 30-49:  Tangentially related, mentions molecule briefly, or off-target indication
+- 0-29:   Editorial, letter, news item, or only peripherally related
+
+Return ONLY valid JSON:
+{{
+  "relevance": 0-100,
+  "rationale": "one short sentence justifying the score"
+}}"""
