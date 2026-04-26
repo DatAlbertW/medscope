@@ -77,7 +77,7 @@ def get_sjr(journal_name: str) -> tuple[float | None, str | None]:
 # ════════════════════════════════════════════════════════════════════════════
 
 def _ensure_cache_loaded() -> None:
-    """Load cache from disk. The CSV is bundled with the repo at data/sjr_scores.csv."""
+    """Load cache from disk. The CSV is bundled with the repo at data/scimagojr_2025.csv."""
     global _cache_loaded
     with _cache_lock:
         if _cache_loaded:
