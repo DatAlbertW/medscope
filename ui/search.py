@@ -211,6 +211,7 @@ def _render_molecule_and_areas() -> tuple[str, list[str]]:
 
     # Group options visually with the chapter prefix
     options = [a["label"] for a in area_pool]
+    #previously "full_path" instead of "label"
 
     picked_areas = st.sidebar.multiselect(
         "Therapeutic areas",
