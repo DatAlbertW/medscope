@@ -289,7 +289,7 @@ def _render_preview_result(preview: dict) -> None:
     if preview.get("therapeutic_areas"):
         ta_html = "".join(
             f'<span class="pill accent" style="margin-right:4px;margin-bottom:4px;'
-            f'display:inline-block;">{ta.split(" › ")[-1]}</span>'
+            f'display:inline-block;">{ta}</span>'
             for ta in preview["therapeutic_areas"]
         )
         st.sidebar.markdown(
