@@ -169,7 +169,13 @@ def rwe_world_map(geography: list[dict]) -> go.Figure:
         z=df["count"],
         text=df["country"],
         customdata=df[["regions", "cohort"]],
-        colorscale=[[0, "#f1eee7"], [0.5, "#8aa0c2"], [1, ACCENT]],
+        colorscale=[
+            [0.0,  "#dbe5f1"],   # pale blue, still visible against white
+            [0.25, "#a8bddc"],   # light blue
+            [0.5,  "#6e8db9"],   # medium blue
+            [0.75, "#3d5d8e"],   # darker blue
+            [1.0,  "#1a2e4a"],   # deep slate (darkest)
+        ],
         marker_line_color="white",
         marker_line_width=0.5,
         colorbar=dict(
