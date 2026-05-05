@@ -48,7 +48,7 @@ def render_sidebar_search() -> str | None:
         '</div>'
         '<div style="font-size:0.72rem;font-style:italic;color:var(--ink-faint);'
         'margin-bottom:1rem;letter-spacing:0.02em;">'
-        'Made for ContentEd Med'
+        'Made for ContentEd Net'
         '</div>',
         unsafe_allow_html=True,
     )
