@@ -146,11 +146,14 @@ Score on a 0-100 scale considering:
 - SUBSTANCE: Does it report meaningful new findings vs. being a brief commentary, news piece, or letter?
 
 Calibration anchors:
-- 90-100: Pivotal trial, major systematic review, or landmark study directly on this molecule (and therapeutic area)
-- 70-89:  Substantive original research squarely on this molecule
-- 50-69:  Relevant review, secondary analysis, or related condition
-- 30-49:  Tangentially related, mentions molecule briefly, or off-target indication
-- 0-29:   Editorial, letter, news item, or only peripherally related
+- 90-100: Pivotal phase 3 trial, major systematic review, or landmark study squarely on this molecule (and therapeutic area if specified)
+- 75-89:  Substantive research clearly focused on this molecule (phase 1-2 trials, focused reviews, real-world studies on the target indication)
+- 60-74:  Relevant secondary analysis, related condition, or paper where the molecule is one of several discussed
+- 40-59:  Tangential — mentions molecule briefly, or in a different indication
+- 20-39:  Editorial, letter, perspective piece, or only peripherally related
+- 0-19:   Off-topic or molecule barely mentioned
+
+Be willing to give scores in the 80s for substantive research. Reserve 90+ only for truly central work.
 
 Return ONLY valid JSON:
 {{
