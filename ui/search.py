@@ -43,8 +43,12 @@ def render_sidebar_search() -> str | None:
     """
     st.sidebar.markdown("## MedScope")
     st.sidebar.markdown(
-        '<div class="section-label" style="margin-bottom:1rem">'
+        '<div class="section-label" style="margin-bottom:0.2rem">'
         'Literature Intelligence'
+        '</div>'
+        '<div style="font-size:0.72rem;font-style:italic;color:var(--ink-faint);'
+        'margin-bottom:1rem;letter-spacing:0.02em;">'
+        'Made for ContentEd Med'
         '</div>',
         unsafe_allow_html=True,
     )
