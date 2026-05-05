@@ -89,16 +89,6 @@ PREDEFINED_QUESTIONS = [
             "this molecule."
         ),
     },
-    {
-        "id": "manuscript_opportunity",
-        "label": "What manuscript opportunities could ContentEd Med propose?",
-        "instruction": (
-            "Based on the evidence gaps and publication landscape, suggest 2-3 "
-            "concrete manuscript opportunities a medical communications agency "
-            "could propose to a pharma client. Include manuscript type and "
-            "target journal tier for each."
-        ),
-    },
 ]
 
 
