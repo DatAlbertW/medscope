@@ -60,12 +60,12 @@ report = st.session_state.get("report")
 
 if report is None:
     # ── Empty state ────────────────────────────────────────────────────────
-    st.markdown("# MedScope")
     st.markdown(
-        '<div style="margin-top:-0.5rem;color:var(--ink-soft);font-size:1.15rem;'
-        'margin-bottom:2.5rem;max-width:680px;line-height:1.5;">'
-        'Literature and evidence intelligence for medical affairs and publication planning. '
-        'Pick a molecule, narrow by therapeutic area, set a date range, and run the analysis.'
+        '<div style="font-family:Fraunces,serif;font-size:5rem;line-height:1;'
+        'margin-bottom:0.5rem;color:var(--ink);">MedScope</div>'
+        '<div style="font-style:italic;color:var(--ink-faint);'
+        'font-size:1.05rem;letter-spacing:0.02em;margin-bottom:3rem;">'
+        'Built for ContentEd Net'
         '</div>',
         unsafe_allow_html=True,
     )
