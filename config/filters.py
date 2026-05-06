@@ -13,7 +13,7 @@ MAX_PAPERS_PER_CATEGORY = 50
 # Maximum total papers to classify per search before hitting the category cap.
 # The pipeline fetches this many from PubMed, then classifies and distributes
 # into the 4 categories, capping each at MAX_PAPERS_PER_CATEGORY.
-MAX_PAPERS_PER_SEARCH = 20
+MAX_PAPERS_PER_SEARCH = 5
 
 
 # ── Default date range ──────────────────────────────────────────────────────
