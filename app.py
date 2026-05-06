@@ -61,6 +61,7 @@ report = st.session_state.get("report")
 if report is None:
     # ── Empty state ────────────────────────────────────────────────────────
     st.markdown(
+        '</div>',
         '<div style="font-family:Fraunces,serif;font-size:5rem;line-height:1;'
         'margin-bottom:0.5rem;color:var(--ink);">MedScope</div>'
         '<div style="font-style:italic;color:var(--ink-faint);'
