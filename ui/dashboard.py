@@ -48,15 +48,24 @@ def _render_header(report: MoleculeReport) -> None:
         f'</div>',
         unsafe_allow_html=True,
     )
-    st.markdown(
-        f'<div style="font-size:0.9rem;color:var(--ink-faint);margin-bottom:0.5rem;">'
-        f'<em>{report.indication_hint}</em>'
-        f'</div>',
-        unsafe_allow_html=True,
-    )
 
+    # Show user-selected therapeutic areas (not the molecule's full indication list)
+    selected_areas = sp.get("therapeutic_areas", [])
+    if selected_areas:
+        clean_areas = [a.split(" › ")[-1] for a in selected_areas]
+        indication_line = ", ".join(clean_areas)
+        st.markdown(
+            f'<div style="font-size:0.9rem;color:var(--ink-faint);margin-bottom:0.5rem;">'
+            f'<em>{indication_line}</em>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+    # Metadata line: date range, hits, classified, runtime
     meta_parts = []
-    if sp.get("year_from") and sp.get("year_to"):
+    if sp.get("date_from") and sp.get("date_to"):
+        meta_parts.append(f'{sp["date_from"]}–{sp["date_to"]}')
+    elif sp.get("year_from") and sp.get("year_to"):
         meta_parts.append(f'{sp["year_from"]}–{sp["year_to"]}')
     meta_parts.append(f'{report.total_pubmed_hits:,} PubMed hits')
     meta_parts.append(f'{report.total_classified} classified')
@@ -65,12 +74,12 @@ def _render_header(report: MoleculeReport) -> None:
     st.markdown(
         f'<div style="font-size:0.78rem;color:var(--ink-faint);'
         f'text-transform:uppercase;letter-spacing:0.08em;margin-top:0.5rem;">'
-        f' · '.join(meta_parts)
+        + ' · '.join(meta_parts)
         + '</div>',
         unsafe_allow_html=True,
     )
 
-# DEBUG: show pipeline warnings
+    # DEBUG: show pipeline warnings
     if report.pipeline_warnings:
         with st.expander("Debug info (pipeline warnings)"):
             for w in report.pipeline_warnings:
