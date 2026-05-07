@@ -45,13 +45,13 @@ SJR_ANCHORS = [
 # ── Citation normalization ──────────────────────────────────────────────────
 # Citation counts grow over time, so we apply a soft log-style curve.
 CITATION_ANCHORS = [
-    (500, 100),
-    (200,  85),
-    (100,  70),
-    ( 50,  55),
-    ( 20,  40),
-    ( 10,  25),
-    (  5,  15),
+    (200, 100),
+    (100,  90),
+    ( 50,  80),
+    ( 20,  65),
+    ( 10,  50),
+    (  5,  35),
+    (  2,  20),
     (  0,   0),
 ]
 
