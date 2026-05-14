@@ -166,7 +166,7 @@ st.markdown(
     '<div style="margin-top:4rem;padding-top:1rem;border-top:1px solid var(--line);'
     'color:var(--ink-faint);font-size:0.75rem;text-align:center;letter-spacing:0.08em;'
     'text-transform:uppercase;">'
-    'MedScope · Proof of Concept · April 2026'
+    'MedScope · Proof of Concept · May 2026'
     '</div>',
     unsafe_allow_html=True,
 )
